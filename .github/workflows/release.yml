@@ -1,34 +1,74 @@
 name: Release
 
-# Deprecated: releases are manual only from Actions tab -> Release -> Run workflow, as
-# attmonk-ci GitHub App. Conventional Commits since the last tag pick the
-# version: feat is minor, fix/perf/revert patch, other types release nothing.
-# The release bumps manifest.json, verifies, commits, tags and pushes; the tag
-# build then publishes the release and updates the catalog. See RELEASING.md in
-# attmonk/silo-plugins.
-
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: Version without a leading v. Blank picks it from the commits (at least a patch).
+        description: "Version to release, without leading v. Defaults to the selected ref."
         required: false
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   release:
-    # One release at a time; a newer push waits and then releases everything since the last tag.
-    concurrency:
-      group: release
-      cancel-in-progress: false
-    uses: attmonk/silo-plugins/.github/workflows/release-plugin.yml@main
-    with:
-      auto: false
-      version: ${{ inputs.version }}
-      commit-message: "chore(release): Local Artwork {version}"
-      tag-message: Local Artwork v{version}
-      verify: make test
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: make test
+
+      - name: Build release binaries
+        run: |
+          make checksums BINARY=plugin VERSION="${{ steps.version.outputs.version }}"
+          make catalog-assets BINARY=plugin PLUGIN_SLUG=silo-plugin-local-artwork VERSION="${{ steps.version.outputs.version }}"
+
+      - name: Publish source release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "$TAG" --notes "Local Artwork for Silo $TAG"
+          gh release upload "$TAG" dist/plugin-* dist/checksums.txt --clobber
+
+      - name: Publish catalog release assets
+        env:
+          GH_TOKEN: ${{ secrets.CATALOG_PUSH_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "CATALOG_PUSH_TOKEN is not set; skipping attmonk/silo-plugins release upload."
+            exit 0
+          fi
+          gh release view "$TAG" --repo attmonk/silo-plugins >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo attmonk/silo-plugins --title "$TAG" --notes "ATTMonk Silo plugins $TAG"
+          gh release upload "$TAG" dist/catalog/plugin-* dist/catalog/checksums.txt \
+            --repo attmonk/silo-plugins \
+            --clobber
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: silo-local-artwork-dist
+          path: dist/

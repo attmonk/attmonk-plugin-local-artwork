@@ -1,11 +1,5 @@
 # Local Artwork for Silo
 
-> **Deprecated.** This plugin is no longer maintained and has been removed from
-> the [ATTMonk plugin catalog](https://github.com/attmonk/silo-plugins).
-> Existing installations are left in place, but will receive no further updates.
-
-Maintained by [ATTMonk](https://github.com/attmonk).
-
 Local Artwork is a compatibility add-on for Silo's built-in NFO provider. Silo
 core parses NFO metadata; this plugin discovers and serves posters, backdrops,
 logos, and stills stored beside media files.
@@ -64,9 +58,10 @@ Configure library providers in this order:
 2. `Local Artwork` for artwork discovery and resolution.
 3. TMDB, TVDB, and other remote providers for remaining metadata.
 
-The installed plugin and `local-metadata` capability keep their stable identities
-so existing installations and provider assignments upgrade in place. The
-manifest is the source of truth for those identifiers.
+The installed plugin ID and capability ID intentionally remain
+`<plugin_id>` and `local-metadata` so existing installations
+and provider assignments upgrade in place. Only the product, repository, and
+canonical image scheme have been renamed.
 
 ## Development
 

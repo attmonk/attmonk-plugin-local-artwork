@@ -34,4 +34,4 @@ Missing sidecars produce empty responses, not errors. Malformed NFO produces a p
 
 ## Upstream Readiness
 
-The module has no attmonk-specific paths, secrets, or service dependencies. README and tests document the same-basename-only behavior explicitly so the Silo team can decide whether to accept that narrow scope or extend it later.
+The module has no ATTMonk-specific paths, secrets, or service dependencies. README and tests document the same-basename-only behavior explicitly so the Silo team can decide whether to accept that narrow scope or extend it later.
